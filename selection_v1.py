@@ -151,7 +151,7 @@ while iteration < MAX_ITER and (UB - LB) > epsilon:
         
         # Add Optimality Cut to Master Problem
         expr = master.theta >= (
-            sum((sub.cost[p] + sub.emission[p] * sub.carbon_tax + sub.footprint[p] * sub.land_price - sigma[p]) * sub.U_p * master.y[p]
+            sum((sub.cost[p] + sub.emission[p] * throughput[p] * sub.carbon_tax + sub.footprint[p] * sub.land_price - sigma[p]) * sub.U_p * master.y[p]
                 for p in sub.P)
             + pi * sub.CO2_target + mu * sub.available_land
         )
