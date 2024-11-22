@@ -6,33 +6,37 @@ import pyomo.opt as opt
 # Processes
 P = [1, 2, 3, 4, 5, 6, 7, 8]
 
-# Parameters for each process
+# Parameters for each process 
+# Minimum required treatment price (USD/kg)
 cost = {
     1: 0.978, 2: 0.640, 3: 1.244, 4: 0.875,
     5: 1.172, 6: 1.323, 7: 1.179, 8: 0.988
 }
 
+# Global warming potential (kg CO2eq/kg)
 emission = {
-    1: 0.334, 2: 0.383, 3: 0.469, 4: 0.376,
-    5: 0.675, 6: 0.529, 7: 0.693, 8: 0.333
+    1: 0.327, 2: 0.420, 3: 0.433, 4: 0.350,
+    5: 0.707, 6: 0.527, 7: 0.724, 8: 0.406
 }
 
+# Sequestration equipment area (m2 sec/kg)
 footprint = {
     1: 1.332, 2: 3.097, 3: 53.979, 4: 55.276,
     5: 58.479, 6: 54.148, 7: 44.847, 8: 7.891
 }
 
 throughput = {
-    p: 3 for p in P  # 3 tons per unit for all processes
+    1: 3.244, 2: 3.069, 3: 3.201, 4: 3.126,
+    5: 3.044, 6: 3.241, 7: 3.116, 8: 3.283
 }
 
 # Additional Parameters
-carbon_tax = 50    # $ per ton of CO₂ emitted
-land_price = 300    # $ per unit area
-available_land = 650  # Total available land area
-CO2_target = 20    # Target CO₂ capture per day
-U_p = 10            # Maximum units per process
-M = U_p            # Big-M value
+carbon_tax = 50        # $ per ton of CO₂ emitted
+land_price = 300       # $ per unit area
+available_land = 6500  # Total available land area
+CO2_target = 200       # Target tons of CO₂ capture per day
+U_p = 30               # Maximum units per process
+M = U_p                # Big-M value
 
 # Solver
 solver = opt.SolverFactory('cbc')
@@ -56,7 +60,7 @@ master.selection_limit = pyo.Constraint(expr=sum(master.y[p] for p in master.P) 
 master.benders_cuts = pyo.ConstraintList()
 
 # Benders Decomposition Loop
-MAX_ITER = 20
+MAX_ITER = 100
 epsilon = 1e-6
 LB = -float('inf')
 UB = float('inf')
@@ -123,14 +127,10 @@ while iteration < MAX_ITER and (UB - LB) > epsilon:
     sub_result = solver.solve(sub, tee=False)
     if (sub_result.solver.termination_condition == pyo.TerminationCondition.infeasible):
         print("Subproblem is infeasible. Adding feasibility cut.")
-        # Identify unselected processes
-        unselected_processes = [p for p in P if y_values[p] < 0.5]
-        if unselected_processes:
-            # Feasibility Cut: At least one more unselected process must be selected
-            master.benders_cuts.add(sum(master.y[p] for p in unselected_processes) >= 1)
-        else:
-            print("No unselected processes left to select. Problem may be infeasible.")
-            break  # Exit the loop as no further cuts can be added
+        # Exclude current infeasible combination
+        master.benders_cuts.add(
+            sum((1 - master.y[p]) if y_values[p] > 0.5 else master.y[p] for p in P) >= 1
+        )
         continue  # Proceed to next iteration
     else:
         # Subproblem is feasible
