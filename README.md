@@ -1,7 +1,7 @@
 # CO2-capture-process-plainning
 
 
-<img src='optimization_flowchart.pdf'>
+<img src='optimization_flowchart.png'>
 
 
 
