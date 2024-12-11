@@ -1,5 +1,73 @@
 import pyomo.environ as pyo
 import pyomo.opt as opt
+import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
+import numpy as np
+
+def plot_results(installed_units, operating_units):
+    sns.set(style="whitegrid")
+    df_installed = pd.DataFrame(list(installed_units.items()), columns=['Process', 'Installed Units'])
+    df_operating = pd.DataFrame(list(operating_units.items()), columns=['Process', 'Operating Units'])
+
+    df_merged = pd.merge(df_installed, df_operating, on='Process', how='left').fillna(0)
+
+    df_cost = pd.DataFrame(list(cost.items()), columns=['Process', 'Total Cost (USD)'])
+    df_emission = pd.DataFrame(list(emission.items()), columns=['Process', 'Emissions (kg CO2/kg captured)'])
+
+    df_full = pd.merge(df_merged, df_cost, on='Process', how='left')
+    df_full = pd.merge(df_full, df_emission, on='Process', how='left')
+
+    throughput_series = pd.Series(throughput)
+
+    df_merged['Process'] = df_merged['Process'].astype(int)
+    df_merged['Installed Units Full Throughput'] = df_merged['Installed Units'] * df_merged['Process'].map(throughput_series)
+    df_merged['Operating Units Throughput'] = df_merged['Operating Units'] * df_merged['Process'].map(throughput_series)
+    df_merged['Process'] = df_merged['Process'].astype(str)
+
+    df_co2 = df_merged[['Process', 'Installed Units Full Throughput', 'Operating Units Throughput']].melt(
+        id_vars='Process', 
+        var_name='Stage', 
+        value_name='CO2 Capture'
+    )
+
+    fig, axes = plt.subplots(1, 2, figsize=(20, 8))
+
+    ax1 = axes[0]
+    bar_width = 0.35
+    index = range(len(df_merged))
+
+    ax1.bar(index, df_merged['Installed Units'], bar_width, label='Installed Units', color='skyblue')
+    ax1.bar([i + bar_width for i in index], df_merged['Operating Units'], bar_width, label='Operating Units', color='salmon')
+
+    ax1.set_xlabel('Process', fontsize=12)
+    ax1.set_ylabel('Number of Units', fontsize=12)
+    ax1.set_title('Installed vs Operating Units per Process', fontsize=14)
+    ax1.set_xticks([i + bar_width / 2 for i in index])
+    ax1.set_xticklabels(df_merged['Process'], fontsize=10)
+    ax1.legend()
+
+    ax1.grid(axis='y', linestyle='--', alpha=0.7)
+
+    ax2 = axes[1]
+
+    sns.barplot(
+        data=df_co2, 
+        x='Process', 
+        y='CO2 Capture', 
+        hue='Stage', 
+        palette='Set2', 
+        ax=ax2
+    )
+
+    ax2.set_xlabel('Process', fontsize=12)
+    ax2.set_ylabel('CO$_2$ Capture (kg/hr)', fontsize=12)
+    ax2.set_title('CO$_2$ Capture Contribution per Process', fontsize=14)
+    ax2.legend(title='Stage')
+    ax2.grid(axis='y', linestyle='--', alpha=0.7)
+
+    plt.tight_layout()
+    plt.show()
 
 # Data Initialization
 # Processes
@@ -119,7 +187,7 @@ footprint = {
 
 # Additional Parameters
 carbon_tax = 66.70     # USD per ton of CO2 emitted
-land_price = 1e6       # USD per unit area
+land_price = 1e4       # USD per unit area
 available_land = 6500  # Total available land area
 CO2_target = 8333.33   # Target tons of CO2 capture per day (200 ton/day > 8333.33 kg/hr)
 U_p = 30               # Maximum units per process
@@ -180,11 +248,57 @@ print("Selected Processes:", selected_processes)
 print("Installed Units:", installed_units)
 
 
+# For reproducibility
+np.random.seed(42)
+
+# Number of simulation iterations
+num_simulations = 8000
+
+# Wind Resource Availability (Normal Distribution)
+wind_mean = 8       # m/s
+wind_std = 1        # m/s
+wind_resource = np.random.normal(wind_mean, wind_std, num_simulations)
+wind_resource = np.maximum(wind_resource, 0.1)  # Ensure positive
+
+# Operational Costs (Lognormal Distribution)
+operational_mean = 35000    # $
+operational_std = 10000     # $
+mu = np.log((operational_mean ** 2) / np.sqrt(operational_std ** 2 + operational_mean ** 2))
+sigma = np.sqrt(np.log(1 + (operational_std ** 2) / (operational_mean ** 2)))
+operational_costs = np.random.lognormal(mu, sigma, num_simulations)
+
+# Regulatory Factors (Binary)
+subsidy_probability = 0.3
+regulatory_factor = np.random.binomial(1, subsidy_probability, num_simulations)
+regulatory_reduction = 0.1  # 10% reduction if subsidy is applied
+regulatory_multiplier = 1 - (regulatory_factor * regulatory_reduction)
+
+# Energy Demand (Triangular Distribution)
+energy_min = 500    # MW
+energy_mode = 1500   # MW
+energy_max = 2500    # MW
+energy_demand = np.random.triangular(energy_min, energy_mode, energy_max, num_simulations)
+
+# Calculate Wind Energy Price
+wind_energy_price = (operational_costs * regulatory_multiplier) / (wind_resource * energy_demand)
+wind_energy_price_mwh = wind_energy_price * 1000 / 3.6 # $ per GJ
+
+# Create DataFrame
+results = pd.DataFrame({
+    'Wind Resource (m/s)': wind_resource,
+    'Operational Costs ($)': operational_costs,
+    'Regulatory Factor': regulatory_factor,
+    'Energy Demand (MW)': energy_demand,
+    'Wind Energy Price ($/GJ)': wind_energy_price_mwh
+})
+
+
 # ===========================================================================================
 # Second stage
 # ===========================================================================================
-scenario_elec_price = 16.9       # from original 16.72 USD/GJ to 15 USD/GJ
-scenario_elec_emission = 120.06  # from original 120.06 kg CO2/GJ to 30 kg CO2/GJ
+# Evaluating the affect of renewable energy
+scenario_elec_price = 600      # from original 16.72 USD/GJ to 30 USD/GJ
+scenario_elec_emission = 0     # from original 120.06 kg CO2/GJ to 0 kg CO2/GJ (Using wind)
 
 # Adjust the ut_cost and ut_emission_factors for the scenario
 new_ele_cost = list(ut_cost)
@@ -249,3 +363,5 @@ operating_units = {p: pyo.value(second.x[p]) for p in P if pyo.value(second.x[p]
 # Compare first and second stage results
 print("First stage installed:", installed_units)
 print("Second stage operating decision under new conditions:", operating_units)
+
+plot_results(installed_units, operating_units)
