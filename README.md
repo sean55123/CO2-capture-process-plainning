@@ -10,7 +10,7 @@ Subproblem: Minimizing overall selected process cost, including capital cost, op
 ## Selection version 2
 Use Bender decomposition to do process selection, but in this version subproblem is used for feasibility test.
 Master problem: Minimizing overall selected process cost.
-Subproblem: Evaluating the feasibility via increasing 10% and reducing 5% of processes' CO$\_2$ capture throughput.
+Subproblem: Evaluating the feasibility via increasing 10% and reducing 5% of processes' CO₂ capture throughput.
 
 ## Selection version 3
 Do the optimization through a two-stage optimization with two different objective function.
