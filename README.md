@@ -23,7 +23,6 @@ Second stage: Basing on the selection in the first stage to decide which process
 Do the optimization through a two-stage optimization while combining two objective functions together.    
 
 First stage (Here-and-Now): Select the process with lowest capital cost.    
-
 Second stage (Wait-and-see): Decide which process and how many of it should be activated when encountering the renewable electricity uncertainty, which is forecasted by Monter-Carlo model.  
 
 
