@@ -69,10 +69,7 @@ def plot_results(installed_units, operating_units):
     plt.tight_layout()
     plt.show()
 
-# For reproducibility
 np.random.seed(42)
-
-# Number of simulation iterations
 num_simulations = 8000
 
 # Wind Resource Availability (Normal Distribution)
@@ -236,7 +233,6 @@ footprint = {
     5: 58.479, 6: 54.148, 7: 44.847, 8: 7.891
 }
 
-# Additional Parameters
 carbon_tax = 10000     # USD per ton of CO2 emitted
 land_price = 1e4       # USD per unit area
 available_land = 6500  # Total available land area
@@ -246,8 +242,6 @@ M = U_p                # Big-M value
 
 # Initialize Pyomo model
 model = pyo.ConcreteModel()
-
-# Sets
 model.P = pyo.Set(initialize=P)  # Processes
 model.S = pyo.Set(initialize=scenario_ids)  # Scenarios
 
@@ -263,7 +257,6 @@ def compute_new_emission_cost(p, s):
     new_ele_emission = list(ut_emission_factors)
     new_ele_emission[0] = scenario_elec_emission_dict[s]
     
-    # Recompute emissions and costs
     new_emission, new_cost, new_aoc = process_performance(
         P, utilities_usage, new_ele_emission, new_ele_cost, throughput, cap
     )
@@ -297,7 +290,6 @@ model.x_s = pyo.Var(model.P, model.S, within=pyo.NonNegativeIntegers)  # Units o
 # Calculate scenario probabilities (assuming equal probability)
 prob = 1 / len(model.S)
 
-# Objective: Minimize first stage costs plus expected second stage costs
 def objective_rule(model):
     first_stage_cost = sum(
         model.x[p] * (
@@ -317,7 +309,6 @@ model.obj = pyo.Objective(rule=objective_rule, sense=pyo.minimize)
 # =======================================================================================
 # First-stage constraints
 # =======================================================================================
-
 # Process selection limit
 model.selection_limit = pyo.Constraint(expr=sum(model.y[p] for p in model.P) <= 8)
 
@@ -358,14 +349,12 @@ def second_stage_availability_rule(model, p, s):
 
 model.second_stage_availability = pyo.Constraint(model.P, model.S, rule=second_stage_availability_rule)
 
-# Optional: Limit on number of processes operated per scenario
 model.process_limit = pyo.Constraint(
     model.S,
     rule=lambda model, s: sum(model.z[p, s] for p in model.P) <= 8
 )
 
-# Replace 'cbc' with your preferred solver
-solver = pyo.SolverFactory('gurobi')  # or 'cplex', 'xpress'
+solver = pyo.SolverFactory('gurobi')
 
 # Solve the model
 print("Solving Two-Stage Stochastic Optimization Model...")
