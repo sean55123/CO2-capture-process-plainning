@@ -18,7 +18,7 @@ First stage: Minimizing overall selected process cost.
 Second stage: Basing on the selection in the first stage to decide which process and how many of it can handle the electricity uncertainty with lowest cost.
 
 ## Selection version 4
-# Version 4 optimization flowchart
+### Version 4 optimization flowchart
 <img src='optimization_flowchart.png'>
 Do the optimization through a two-stage optimization while combining two objective functions together.
 First stage (Here-and-Now): Select the process with lowest capital cost.
