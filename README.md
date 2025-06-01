@@ -34,6 +34,8 @@ The final result can be figured out as below:
 Here the bilevel optimization was applied to optimize the process location determination.
 The first level objective function is for process selection by minizing the overall process cost.
 <img src='Masterproblem.png'>
+
+
 The second level is to define the location by minimizing the transportation cost.
 <img src='Subproblem.png'>
 
@@ -41,7 +43,7 @@ The parameters used are shown as followed.
 <img src='parameter.png'>
 
 Result:
-<img src='co2_capture_solution.png>
+<img src='co2_capture_solution.png'>
 
 
 ## References
